@@ -1467,7 +1467,8 @@ will be lost. Continue?"""
                 msg = _("Add-on will be installed when a profile is opened.")
             else:
                 msg = _("Deck will be imported when a profile is opened.")
-            return tooltip(msg)
+            tooltip(msg)
+            return None
         if not self.interactiveState() or self.progress.busy():
             # we can't raise the main window while in profile dialog, syncing, etc
             if buf != "raise":

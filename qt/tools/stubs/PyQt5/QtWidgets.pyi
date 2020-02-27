@@ -6418,7 +6418,8 @@ class QMenuBar(QWidget):
 
 class QMessageBox(QDialog):
 
-    class StandardButton(int): ...
+    class StandardButton(int):
+        def __or__(self, other: QMessageBox.StandardButton) -> QMessageBox.StandardButton: ...
     NoButton = ... # type: 'QMessageBox.StandardButton'
     Ok = ... # type: 'QMessageBox.StandardButton'
     Save = ... # type: 'QMessageBox.StandardButton'

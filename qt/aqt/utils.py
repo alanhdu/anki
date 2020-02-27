@@ -8,7 +8,7 @@ import os
 import re
 import subprocess
 import sys
-from typing import Any, Optional, Union
+from typing import Any, Callable, Optional, Union, TYPE_CHECKING
 
 import anki
 import aqt
@@ -17,6 +17,22 @@ from anki.rsbackend import TR
 from anki.utils import invalidFilename, isMac, isWin, noBundledLibs, versionWithBuild
 from aqt.qt import *
 from aqt.theme import theme_manager
+
+
+if TYPE_CHECKING:
+    from PyQt5.QtWidgets import (
+        QDialog,
+        QDialogButtonBox,
+        QHeaderView,
+        QMenu,
+        QSplitter,
+        QWidget,
+    )
+    from aqt.browser import Browser
+    from aqt.deckconf import DeckConf
+    from aqt.main import AnkiQt
+    from aqt.stats import DeckStats
+    from aqt.studydeck import StudyDeck
 
 
 def aqt_data_folder() -> str:
@@ -162,7 +178,14 @@ def showText(
         return diag, box
 
 
-def askUser(text, parent=None, help="", defaultno=False, msgfunc=None, title="Anki"):
+def askUser(
+    text: str,
+    parent: Optional[QWidget] = None,
+    help: str = "",
+    defaultno: bool = False,
+    msgfunc: Callable = None,
+    title: str = "Anki",
+) -> bool:
     "Show a yes/no question. Return true if yes."
     if not parent:
         parent = aqt.mw.app.activeWindow()
@@ -406,7 +429,7 @@ def getSaveFile(parent, title, dir_description, key, ext, fname=None):
     return file
 
 
-def saveGeom(widget, key):
+def saveGeom(widget: Any, key: str) -> None:
     key += "Geom"
     if isMac and widget.windowState() & Qt.WindowFullScreen:
         geom = None
@@ -415,7 +438,9 @@ def saveGeom(widget, key):
     aqt.mw.pm.profile[key] = geom
 
 
-def restoreGeom(widget, key, offset=None, adjustSize=False):
+def restoreGeom(
+    widget: QWidget, key: str, offset: Optional[int] = None, adjustSize: bool = False
+) -> None:
     key += "Geom"
     if aqt.mw.pm.profile.get(key):
         widget.restoreGeometry(aqt.mw.pm.profile[key])
@@ -430,7 +455,7 @@ def restoreGeom(widget, key, offset=None, adjustSize=False):
             widget.adjustSize()
 
 
-def ensureWidgetInScreenBoundaries(widget):
+def ensureWidgetInScreenBoundaries(widget: QWidget) -> None:
     handle = widget.window().windowHandle()
     if not handle:
         # window has not yet been shown, retry later
@@ -456,34 +481,34 @@ def ensureWidgetInScreenBoundaries(widget):
         widget.move(x, y)
 
 
-def saveState(widget, key):
+def saveState(widget: Browser, key: str) -> None:
     key += "State"
     aqt.mw.pm.profile[key] = widget.saveState()
 
 
-def restoreState(widget, key):
+def restoreState(widget: QWidget, key: str) -> None:
     key += "State"
     if aqt.mw.pm.profile.get(key):
         widget.restoreState(aqt.mw.pm.profile[key])
 
 
-def saveSplitter(widget, key):
+def saveSplitter(widget: QSplitter, key: str) -> None:
     key += "Splitter"
     aqt.mw.pm.profile[key] = widget.saveState()
 
 
-def restoreSplitter(widget, key):
+def restoreSplitter(widget: QSplitter, key: str) -> None:
     key += "Splitter"
     if aqt.mw.pm.profile.get(key):
         widget.restoreState(aqt.mw.pm.profile[key])
 
 
-def saveHeader(widget, key):
+def saveHeader(widget: QHeaderView, key: str) -> None:
     key += "Header"
     aqt.mw.pm.profile[key] = widget.saveState()
 
 
-def restoreHeader(widget, key):
+def restoreHeader(widget: QHeaderView, key: str) -> None:
     key += "Header"
     if aqt.mw.pm.profile.get(key):
         widget.restoreState(aqt.mw.pm.profile[key])
@@ -503,27 +528,27 @@ def openFolder(path):
             QDesktopServices.openUrl(QUrl("file://" + path))
 
 
-def shortcut(key):
+def shortcut(key: str) -> str:
     if isMac:
         return re.sub("(?i)ctrl", "Command", key)
     return key
 
 
-def maybeHideClose(bbox):
+def maybeHideClose(bbox: QDialogButtonBox) -> None:
     if isMac:
         b = bbox.button(QDialogButtonBox.Close)
         if b:
             bbox.removeButton(b)
 
 
-def addCloseShortcut(widg):
+def addCloseShortcut(widg: QDialog) -> None:
     if not isMac:
         return
     widg._closeShortcut = QShortcut(QKeySequence("Ctrl+W"), widg)
-    widg._closeShortcut.activated.connect(widg.reject)
+    widg._closeShortcut.activated.connect(widg.reject)  # type: ignore
 
 
-def downArrow():
+def downArrow() -> str:
     if isWin:
         return "▼"
     # windows 10 is lacking the smaller arrow on English installs
@@ -537,7 +562,7 @@ _tooltipTimer: Optional[QTimer] = None
 _tooltipLabel: Optional[QLabel] = None
 
 
-def tooltip(msg, period=3000, parent=None):
+def tooltip(msg: str, period: int = 3000, parent: Optional[QWidget] = None) -> None:
     global _tooltipTimer, _tooltipLabel
 
     class CustomLabel(QLabel):
@@ -575,7 +600,7 @@ def tooltip(msg, period=3000, parent=None):
     _tooltipLabel = lab
 
 
-def closeTooltip():
+def closeTooltip() -> None:
     global _tooltipLabel, _tooltipTimer
     if _tooltipLabel:
         try:
@@ -683,7 +708,7 @@ class MenuItem:
         a.triggered.connect(self.func)
 
 
-def qtMenuShortcutWorkaround(qmenu):
+def qtMenuShortcutWorkaround(qmenu: QMenu) -> None:
     if qtminor < 10:
         return
     for act in qmenu.actions():
