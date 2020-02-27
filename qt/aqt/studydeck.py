@@ -2,8 +2,14 @@
 # -*- coding: utf-8 -*-
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
+from typing import Any, Callable, List, Optional
+
+from PyQt5.QtCore import QEvent
+from PyQt5.QtWidgets import QLineEdit
+
 import aqt
 from anki.lang import _
+from aqt.main import AnkiQt
 from aqt import gui_hooks
 from aqt.qt import *
 from aqt.utils import getOnlyText, openHelp, restoreGeom, saveGeom, shortcut, showInfo
@@ -12,17 +18,17 @@ from aqt.utils import getOnlyText, openHelp, restoreGeom, saveGeom, shortcut, sh
 class StudyDeck(QDialog):
     def __init__(
         self,
-        mw,
-        names=None,
-        accept=None,
-        title=None,
-        help="studydeck",
-        current=None,
-        cancel=True,
-        parent=None,
-        dyn=False,
-        buttons=None,
-        geomKey="default",
+        mw: AnkiQt,
+        names: Optional[Callable[[], List[str]]] = None,
+        accept: Optional[str] = None,
+        title: Optional[str] = None,
+        help: str = "studydeck",
+        current: Optional[str] = None,
+        cancel: bool = True,
+        parent: Optional[QWidget] = None,
+        dyn: bool = False,
+        buttons: Optional[List[Any]] = None,
+        geomKey: str = "default",
     ) -> None:
         QDialog.__init__(self, parent or mw)
         if buttons is None:
@@ -51,9 +57,11 @@ class StudyDeck(QDialog):
         if title:
             self.setWindowTitle(title)
         if not names:
-            names = sorted(self.mw.col.decks.allNames(dyn=dyn, force_default=False))
+            names_list = sorted(
+                self.mw.col.decks.allNames(dyn=dyn, force_default=False)
+            )
             self.nameFunc = None
-            self.origNames = names
+            self.origNames = names_list
         else:
             self.nameFunc = names
             self.origNames = names()
@@ -70,7 +78,7 @@ class StudyDeck(QDialog):
         self.redraw("", current)
         self.exec_()
 
-    def eventFilter(self, obj, evt):
+    def eventFilter(self, obj: QLineEdit, evt: QEvent) -> bool:
         if evt.type() == QEvent.KeyPress:
             if evt.key() == Qt.Key_Up:
                 c = self.form.list.count()
@@ -88,7 +96,7 @@ class StudyDeck(QDialog):
                 return True
         return False
 
-    def redraw(self, filt, focus=None):
+    def redraw(self, filt: str, focus: Optional[str] = None) -> None:
         self.filt = filt
         self.focus = focus
         self.names = [n for n in self.origNames if self._matches(n, filt)]
@@ -102,7 +110,7 @@ class StudyDeck(QDialog):
         l.setCurrentRow(idx)
         l.scrollToItem(l.item(idx), QAbstractItemView.PositionAtCenter)
 
-    def _matches(self, name, filt):
+    def _matches(self, name: str, filt: str) -> bool:
         name = name.lower()
         filt = filt.lower()
         if not filt:

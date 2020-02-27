@@ -398,7 +398,14 @@ def getFile(parent, title, cb, filter="*.*", dir=None, key=None, multi=False):
     return ret and ret[0]
 
 
-def getSaveFile(parent, title, dir_description, key, ext, fname=None):
+def getSaveFile(
+    parent: QWidget,
+    title: str,
+    dir_description: str,
+    key: str,
+    ext: str,
+    fname: Optional[str] = None,
+) -> str:
     """Ask the user for a file to save. Use DIR_DESCRIPTION as config
     variable. The file dialog will default to open with FNAME."""
     config_key = dir_description + "Directory"
