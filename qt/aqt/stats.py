@@ -1,8 +1,10 @@
 # Copyright: Ankitects Pty Ltd and contributors
 # -*- coding: utf-8 -*-
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
+from __future__ import annotations
 
 import time
+from typing import Callable, TYPE_CHECKING
 
 import aqt
 from anki.lang import _
@@ -17,12 +19,15 @@ from aqt.utils import (
     tooltip,
 )
 
+if TYPE_CHECKING:
+    from aqt.main import AnkiQt
+
 # Deck Stats
 ######################################################################
 
 
 class DeckStats(QDialog):
-    def __init__(self, mw):
+    def __init__(self, mw: AnkiQt) -> None:
         QDialog.__init__(self, mw, Qt.Window)
         mw.setupDialogGC(self)
         self.mw = mw
@@ -52,17 +57,17 @@ class DeckStats(QDialog):
         self.refresh()
         self.activateWindow()
 
-    def reject(self):
+    def reject(self) -> None:
         self.form.web = None
         saveGeom(self, self.name)
         aqt.dialogs.markClosed("DeckStats")
         QDialog.reject(self)
 
-    def closeWithCallback(self, callback):
+    def closeWithCallback(self, callback: Callable) -> None:
         self.reject()
         callback()
 
-    def _imagePath(self):
+    def _imagePath(self) -> str:
         name = time.strftime("-%Y-%m-%d@%H-%M-%S.pdf", time.localtime(time.time()))
         name = "anki-" + _("stats") + name
         file = getSaveFile(
@@ -75,22 +80,22 @@ class DeckStats(QDialog):
         )
         return file
 
-    def saveImage(self):
+    def saveImage(self) -> None:
         path = self._imagePath()
         if not path:
             return
         self.form.web.page().printToPdf(path)
         tooltip(_("Saved."))
 
-    def changePeriod(self, n):
+    def changePeriod(self, n: int) -> None:
         self.period = n
         self.refresh()
 
-    def changeScope(self, type):
+    def changeScope(self, type: str) -> None:
         self.wholeCollection = type == "collection"
         self.refresh()
 
-    def refresh(self):
+    def refresh(self) -> None:
         self.mw.progress.start(immediate=True, parent=self)
         stats = self.mw.col.stats()
         stats.wholeCollection = self.wholeCollection
