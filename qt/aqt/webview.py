@@ -5,7 +5,7 @@ import dataclasses
 import json
 import math
 import sys
-from typing import Any, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 from anki.lang import _
 from anki.utils import isLin, isMac, isWin
@@ -256,13 +256,13 @@ class AnkiWebView(QWebEngineView):  # type: ignore
     def dropEvent(self, evt):
         pass
 
-    def setHtml(self, html):
+    def setHtml(self, html: str) -> None:
         # discard any previous pending actions
         self._pendingActions = []
         self._domDone = True
         self._queueAction("setHtml", html)
 
-    def _setHtml(self, html):
+    def _setHtml(self, html: str) -> None:
         app = QApplication.instance()
         oldFocus = app.focusWidget()
         self._domDone = False
@@ -271,7 +271,7 @@ class AnkiWebView(QWebEngineView):  # type: ignore
         if oldFocus:
             oldFocus.setFocus()
 
-    def zoomFactor(self):
+    def zoomFactor(self) -> float:
         # overridden scale factor?
         webscale = os.environ.get("ANKI_WEBSCALE")
         if webscale:
@@ -293,7 +293,7 @@ class AnkiWebView(QWebEngineView):  # type: ignore
         newFactor = desiredScale / qtIntScale
         return max(1, newFactor)
 
-    def _getQtIntScale(self, screen):
+    def _getQtIntScale(self, screen) -> int:
         # try to detect if Qt has scaled the screen
         # - qt will round the scale factor to a whole number, so a dpi of 125% = 1x,
         #   and a dpi of 150% = 2x
@@ -428,13 +428,13 @@ body {{ zoom: {}; background: {}; {} }}
             fname
         )
 
-    def eval(self, js):
+    def eval(self, js: str) -> None:
         self.evalWithCallback(js, None)
 
-    def evalWithCallback(self, js, cb):
+    def evalWithCallback(self, js: str, cb: Callable) -> None:
         self._queueAction("eval", js, cb)
 
-    def _evalWithCallback(self, js, cb):
+    def _evalWithCallback(self, js: str, cb: Callable) -> None:
         if cb:
 
             def handler(val):
@@ -451,7 +451,7 @@ body {{ zoom: {}; background: {}; {} }}
         self._pendingActions.append((name, args))
         self._maybeRunActions()
 
-    def _maybeRunActions(self):
+    def _maybeRunActions(self) -> None:
         while self._pendingActions and self._domDone:
             name, args = self._pendingActions.pop(0)
 
@@ -462,10 +462,10 @@ body {{ zoom: {}; background: {}; {} }}
             else:
                 raise Exception("unknown action: {}".format(name))
 
-    def _openLinksExternally(self, url):
+    def _openLinksExternally(self, url) -> None:
         openLink(url)
 
-    def _shouldIgnoreWebEvent(self):
+    def _shouldIgnoreWebEvent(self) -> bool:
         # async web events may be received after the profile has been closed
         # or the underlying webview has been deleted
         from aqt import mw
@@ -497,18 +497,18 @@ body {{ zoom: {}; background: {}; {} }}
             else:
                 return self.onBridgeCmd(cmd)
 
-    def defaultOnBridgeCmd(self, cmd: str) -> Any:
+    def defaultOnBridgeCmd(self, cmd: str) -> None:
         print("unhandled bridge cmd:", cmd)
 
     # legacy
-    def resetHandlers(self):
+    def resetHandlers(self) -> None:
         self.onBridgeCmd = self.defaultOnBridgeCmd
         self._bridge_context = None
 
-    def adjustHeightToFit(self):
+    def adjustHeightToFit(self) -> None:
         self.evalWithCallback("$(document.body).height()", self._onHeight)
 
-    def _onHeight(self, qvar):
+    def _onHeight(self, qvar: Optional[int]) -> None:
         from aqt import mw
 
         if qvar is None:
