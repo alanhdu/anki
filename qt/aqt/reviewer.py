@@ -10,7 +10,9 @@ import html.parser
 import json
 import re
 import unicodedata as ucd
-from typing import List, Optional
+from typing import Callable, List, Optional, Sequence, Tuple, Union
+
+from PyQt5.QtCore import Qt
 
 from anki import hooks
 from anki.cards import Card
@@ -25,7 +27,7 @@ from aqt.utils import askUserDialog, downArrow, qtMenuShortcutWorkaround, toolti
 
 
 class ReviewerBottomBar:
-    def __init__(self, reviewer: Reviewer):
+    def __init__(self, reviewer: Reviewer) -> None:
         self.reviewer = reviewer
 
 
@@ -40,27 +42,28 @@ class Reviewer:
         self.hadCardQueue = False
         self._answeredIds: List[int] = []
         self._recordedAudio = None
-        self.typeCorrect = None  # web init happens before this is set
+        self.typeCorrect: str = None  # web init happens before this is set
         self.state: Optional[str] = None
         self.bottom = BottomBar(mw, mw.bottomWeb)
         hooks.card_did_leech.append(self.onLeech)
 
-    def show(self):
+    def show(self) -> None:
         self.mw.col.reset()
-        self.mw.setStateShortcuts(self._shortcutKeys())
+        self.mw.setStateShortcuts(self._shortcutKeys())  # type: ignore
         self.web.set_bridge_command(self._linkHandler, self)
         self.bottom.web.set_bridge_command(self._linkHandler, ReviewerBottomBar(self))
-        self._reps = None
+        self._reps: int = None
         self.nextCard()
 
-    def lastCard(self):
+    def lastCard(self) -> Optional[Card]:
         if self._answeredIds:
             if not self.card or self._answeredIds[-1] != self.card.id:
                 try:
                     return self.mw.col.getCard(self._answeredIds[-1])
                 except TypeError:
                     # id was deleted
-                    return
+                    return None
+        return None
 
     def cleanup(self) -> None:
         gui_hooks.reviewer_will_end()
@@ -68,9 +71,10 @@ class Reviewer:
     # Fetching a card
     ##########################################################################
 
-    def nextCard(self):
+    def nextCard(self) -> None:
         elapsed = self.mw.col.timeboxReached()
         if elapsed:
+            assert not isinstance(elapsed, bool)
             part1 = (
                 ngettext("%d card studied in", "%d cards studied in", elapsed[1])
                 % elapsed[1]
@@ -125,7 +129,7 @@ class Reviewer:
     # Initializing the webview
     ##########################################################################
 
-    def revHtml(self):
+    def revHtml(self) -> str:
         extra = self.mw.col.conf.get("reviewExtra", "")
         fade = ""
         if self.mw.pm.glMode() == "software":
@@ -140,7 +144,7 @@ class Reviewer:
             fade, extra
         )
 
-    def _initWeb(self):
+    def _initWeb(self) -> None:
         self._reps = 0
         # main window
         self.web.stdHtml(
@@ -167,13 +171,13 @@ class Reviewer:
     # Showing the question
     ##########################################################################
 
-    def _mungeQA(self, buf):
+    def _mungeQA(self, buf: str) -> str:
         return self.typeAnsFilter(self.mw.prepare_card_text_for_display(buf))
 
     def _showQuestion(self) -> None:
         self._reps += 1
         self.state = "question"
-        self.typedAnswer = None
+        self.typedAnswer: str = None
         c = self.card
         # grab the question and play audio
         if c.isEmpty():
@@ -206,17 +210,17 @@ The front of this card is empty. Please run Tools>Empty Cards."""
         # user hook
         gui_hooks.reviewer_did_show_question(c)
 
-    def autoplay(self, card):
+    def autoplay(self, card: Card) -> bool:
         return self.mw.col.decks.confForDid(card.odid or card.did)["autoplay"]
 
     def _replayq(self, card, previewer=None):
         s = previewer if previewer else self
         return s.mw.col.decks.confForDid(s.card.odid or s.card.did).get("replayq", True)
 
-    def _drawFlag(self):
+    def _drawFlag(self) -> None:
         self.web.eval("_drawFlag(%s);" % self.card.userFlag())
 
-    def _drawMark(self):
+    def _drawMark(self) -> None:
         self.web.eval("_drawMark(%s);" % json.dumps(self.card.note().hasTag("marked")))
 
     # Showing the answer
@@ -246,7 +250,7 @@ The front of this card is empty. Please run Tools>Empty Cards."""
     # Answering a card
     ############################################################
 
-    def _answerCard(self, ease):
+    def _answerCard(self, ease: int) -> None:
         "Reschedule card and show next."
         if self.mw.state != "review":
             # showing resetRequired screen; ignore key
@@ -269,7 +273,9 @@ The front of this card is empty. Please run Tools>Empty Cards."""
     # Handlers
     ############################################################
 
-    def _shortcutKeys(self):
+    def _shortcutKeys(
+        self,
+    ) -> List[Union[Tuple[str, Callable], Tuple[Qt.Key, Callable]]]:
         return [
             ("e", self.mw.onEditCurrent),
             (" ", self.onEnterKey),
@@ -310,7 +316,7 @@ The front of this card is empty. Please run Tools>Empty Cards."""
     def on_seek_forward(self):
         av_player.seek_relative(self.seek_secs)
 
-    def onEnterKey(self):
+    def onEnterKey(self) -> None:
         if self.state == "question":
             self._getTypedAnswer()
         elif self.state == "answer":
@@ -318,7 +324,7 @@ The front of this card is empty. Please run Tools>Empty Cards."""
                 "selectedAnswerButton()", self._onAnswerButton
             )
 
-    def _onAnswerButton(self, val):
+    def _onAnswerButton(self, val: str) -> None:
         # button selected?
         if val and val in "1234":
             self._answerCard(int(val))
@@ -344,13 +350,13 @@ The front of this card is empty. Please run Tools>Empty Cards."""
 
     typeAnsPat = r"\[\[type:(.+?)\]\]"
 
-    def typeAnsFilter(self, buf):
+    def typeAnsFilter(self, buf: str) -> str:
         if self.state == "question":
             return self.typeAnsQuestionFilter(buf)
         else:
             return self.typeAnsAnswerFilter(buf)
 
-    def typeAnsQuestionFilter(self, buf):
+    def typeAnsQuestionFilter(self, buf: str) -> str:
         self.typeCorrect = None
         clozeIdx = None
         m = re.search(self.typeAnsPat, buf)
@@ -397,7 +403,7 @@ Please run Tools>Empty Cards"""
             buf,
         )
 
-    def typeAnsAnswerFilter(self, buf):
+    def typeAnsAnswerFilter(self, buf: str) -> str:
         if not self.typeCorrect:
             return re.sub(self.typeAnsPat, "", buf)
         origSize = len(buf)
@@ -410,7 +416,7 @@ Please run Tools>Empty Cards"""
         cor = stripHTML(cor)
         # ensure we don't chomp multiple whitespace
         cor = cor.replace(" ", "&nbsp;")
-        cor = parser.unescape(cor)
+        cor = html.unescape(cor)
         cor = cor.replace("\xa0", " ")
         cor = cor.strip()
         given = self.typedAnswer
@@ -526,17 +532,17 @@ Please run Tools>Empty Cards"""
             return "\xa0" + s
         return s
 
-    def _getTypedAnswer(self):
+    def _getTypedAnswer(self) -> None:
         self.web.evalWithCallback("typeans ? typeans.value : null", self._onTypedAnswer)
 
-    def _onTypedAnswer(self, val):
+    def _onTypedAnswer(self, val: None) -> None:
         self.typedAnswer = val or ""
         self._showAnswer()
 
     # Bottom bar
     ##########################################################################
 
-    def _bottomHTML(self):
+    def _bottomHTML(self) -> str:
         return """
 <center id=outer>
 <table id=innertable width=100%% cellspacing=0 cellpadding=0>
@@ -565,7 +571,7 @@ time = %(time)d;
             time=self.card.timeTaken() // 1000,
         )
 
-    def _showAnswerButton(self):
+    def _showAnswerButton(self) -> None:
         if not self.typeCorrect:
             self.bottom.web.setFocus()
         middle = """
@@ -587,12 +593,12 @@ time = %(time)d;
         self.bottom.web.eval("showQuestion(%s,%d);" % (json.dumps(middle), maxTime))
         self.bottom.web.adjustHeightToFit()
 
-    def _showEaseButtons(self):
+    def _showEaseButtons(self) -> None:
         self.bottom.web.setFocus()
         middle = self._answerButtons()
         self.bottom.web.eval("showAnswer(%s);" % json.dumps(middle))
 
-    def _remaining(self):
+    def _remaining(self) -> str:
         if not self.mw.col.conf["dueCounts"]:
             return ""
         if self.hadCardQueue:
@@ -608,13 +614,13 @@ time = %(time)d;
         ctxt += space + "<span class=review-count>%s</span>" % counts[2]
         return ctxt
 
-    def _defaultEase(self):
+    def _defaultEase(self) -> int:
         if self.mw.col.sched.answerButtons(self.card) == 4:
             return 3
         else:
             return 2
 
-    def _answerButtonList(self):
+    def _answerButtonList(self) -> Sequence[Tuple[int, str]]:
         l = ((1, _("Again")),)
         cnt = self.mw.col.sched.answerButtons(self.card)
         if cnt == 2:
@@ -624,7 +630,7 @@ time = %(time)d;
         else:
             return l + ((2, _("Hard")), (3, _("Good")), (4, _("Easy")))
 
-    def _answerButtons(self):
+    def _answerButtons(self) -> str:
         default = self._defaultEase()
 
         def but(i, label):
@@ -652,7 +658,7 @@ time = %(time)d;
 <script>$(function () { $("#defease").focus(); });</script>"""
         return buf + script
 
-    def _buttonTime(self, i):
+    def _buttonTime(self, i: int) -> str:
         if not self.mw.col.conf["estTimes"]:
             return "<div class=spacer></div>"
         txt = self.mw.col.sched.nextIvlStr(self.card, i, True) or "&nbsp;"
