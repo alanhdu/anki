@@ -88,7 +88,7 @@ class AVPlayer:
     # audio be stopped?
     interrupt_current_audio = True
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._enqueued: List[AVTag] = []
         self.current_player: Optional[Player] = None
 
@@ -113,7 +113,7 @@ class AVPlayer:
         self._enqueued.insert(0, SoundOrVideoTag(filename=filename))
         self._play_next_if_idle()
 
-    def toggle_pause(self):
+    def toggle_pause(self) -> None:
         if self.current_player:
             self.current_player.toggle_pause()
 
@@ -180,7 +180,7 @@ av_player = AVPlayer()
 
 # return modified command array that points to bundled command, and return
 # required environment
-def _packagedCmd(cmd) -> Tuple[Any, Dict[str, str]]:
+def _packagedCmd(cmd: List[str]) -> Tuple[Any, Dict[str, str]]:
     cmd = cmd[:]
     env = os.environ.copy()
     if "LD_LIBRARY_PATH" in env:
