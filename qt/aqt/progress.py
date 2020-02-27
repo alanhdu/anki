@@ -5,11 +5,19 @@
 from __future__ import annotations
 
 import time
-from typing import Optional
+from typing import Callable, Optional, Union, TYPE_CHECKING
 
 import aqt.forms
 from anki.lang import _
 from aqt.qt import *
+
+if TYPE_CHECKING:
+    from anki.backend_pb2 import MediaSyncProgress
+    from PyQt5.QtCore import QTimer
+    from anki.db import DB
+    from aqt.browser import Browser
+    from aqt.main import AnkiQt
+    from aqt.stats import DeckStats
 
 # fixme: if mw->subwindow opens a progress dialog with mw as the parent, mw
 # gets raised on finish on compiz. perhaps we should be using the progress
@@ -20,24 +28,24 @@ from aqt.qt import *
 
 
 class ProgressManager:
-    def __init__(self, mw):
+    def __init__(self, mw: AnkiQt) -> None:
         self.mw = mw
         self.app = QApplication.instance()
         self.inDB = False
         self.blockUpdates = False
-        self._win = None
+        self._win: Optional[ProgressDialog] = None
         self._levels = 0
 
     # SQLite progress handler
     ##########################################################################
 
-    def setupDB(self, db):
+    def setupDB(self, db: DB) -> None:
         "Install a handler in the current DB."
-        self.lastDbProgress = 0
+        self.lastDbProgress = 0.0
         self.inDB = False
         db.set_progress_handler(self._dbProgress, 10000)
 
-    def _dbProgress(self):
+    def _dbProgress(self) -> None:
         "Called from SQLite."
         # do nothing if we don't have a progress window
         if not self._win:
@@ -54,7 +62,7 @@ class ProgressManager:
         # handle GUI events
         if not self.blockUpdates:
             self._maybeShow()
-            self.app.processEvents(QEventLoop.ExcludeUserInputEvents)
+            self.app.processEvents(QEventLoop.ExcludeUserInputEvents)  # type: ignore
         self.inDB = False
 
     # Safer timers
@@ -63,7 +71,9 @@ class ProgressManager:
     # automatically defers until the DB is not busy, and avoids running
     # while a progress window is visible.
 
-    def timer(self, ms, func, repeat, requiresCollection=True):
+    def timer(
+        self, ms: int, func: Callable, repeat: bool, requiresCollection: bool = True
+    ) -> QTimer:
         def handler():
             if self.inDB or self._levels:
                 # retry in 100ms
@@ -78,7 +88,7 @@ class ProgressManager:
         t = QTimer(self.mw)
         if not repeat:
             t.setSingleShot(True)
-        t.timeout.connect(handler)
+        t.timeout.connect(handler)  # type: ignore
         t.start(ms)
         return t
 
@@ -87,7 +97,12 @@ class ProgressManager:
 
     # note: immediate is no longer used
     def start(
-        self, max=0, min=0, label=None, parent=None, immediate=False
+        self,
+        max: int = 0,
+        min: int = 0,
+        label: Optional[str] = None,
+        parent: Optional[DeckStats] = None,
+        immediate: bool = False,
     ) -> Optional[ProgressDialog]:
         self._levels += 1
         if self._levels > 1:
@@ -116,7 +131,13 @@ class ProgressManager:
         self._updating = False
         return self._win
 
-    def update(self, label=None, value=None, process=True, maybeShow=True):
+    def update(
+        self,
+        label: Optional[Union[MediaSyncProgress, str]] = None,
+        value: None = None,
+        process: bool = True,
+        maybeShow: bool = True,
+    ) -> None:
         # print self._min, self._counter, self._max, label, time.time() - self._lastTime
         if self._updating:
             return
@@ -132,11 +153,11 @@ class ProgressManager:
             self._win.form.progressBar.setValue(self._counter)
         if process and elapsed >= 0.2:
             self._updating = True
-            self.app.processEvents()
+            self.app.processEvents()  # type: ignore
             self._updating = False
             self._lastUpdate = time.time()
 
-    def finish(self):
+    def finish(self) -> None:
         self._levels -= 1
         self._levels = max(0, self._levels)
         if self._levels == 0:
@@ -150,7 +171,7 @@ class ProgressManager:
             self._levels = 1
             self.finish()
 
-    def _maybeShow(self):
+    def _maybeShow(self) -> None:
         if not self._levels:
             return
         if self._shown:
@@ -164,7 +185,7 @@ class ProgressManager:
         self._shown = time.time()
         self._win.show()
 
-    def _closeWin(self):
+    def _closeWin(self) -> None:
         if self._shown:
             while True:
                 # give the window system a second to present
@@ -174,15 +195,15 @@ class ProgressManager:
                 elap = time.time() - self._shown
                 if elap >= 0.5:
                     break
-                self.app.processEvents(QEventLoop.ExcludeUserInputEvents)
+                self.app.processEvents(QEventLoop.ExcludeUserInputEvents)  # type: ignore
         self._win.cancel()
         self._win = None
         self._shown = False
 
-    def _setBusy(self):
+    def _setBusy(self) -> None:
         self.mw.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 
-    def _unsetBusy(self):
+    def _unsetBusy(self) -> None:
         self.app.restoreOverrideCursor()
 
     def busy(self):
@@ -191,14 +212,14 @@ class ProgressManager:
 
 
 class ProgressDialog(QDialog):
-    def __init__(self, parent):
+    def __init__(self, parent: Union[Browser, AnkiQt, DeckStats]) -> None:
         QDialog.__init__(self, parent)
         self.form = aqt.forms.progress.Ui_Dialog()
         self.form.setupUi(self)
         self._closingDown = False
         self.wantCancel = False
 
-    def cancel(self):
+    def cancel(self) -> None:
         self._closingDown = True
         self.hide()
 
