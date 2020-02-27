@@ -565,7 +565,7 @@ class RemoteServer(HttpSyncer):
     def __init__(self, hkey, hostNum) -> None:
         HttpSyncer.__init__(self, hkey, hostNum=hostNum)
 
-    def hostKey(self, user, pw) -> Any:
+    def hostKey(self, user: str, pw: str) -> Any:
         "Returns hkey or none if user/pw incorrect."
         self.postVars = dict()
         ret = self.req(

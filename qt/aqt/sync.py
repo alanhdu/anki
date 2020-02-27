@@ -3,11 +3,14 @@
 
 import gc
 import time
+from typing import Optional, Tuple
 
 from anki import hooks
 from anki.lang import _
 from anki.storage import Collection
 from anki.sync import FullSyncer, RemoteServer, Syncer
+from aqt.main import AnkiQt
+from aqt.profiles import ProfileManager
 from aqt.qt import *
 from aqt.utils import askUserDialog, showInfo, showText, showWarning, tooltip
 
@@ -16,12 +19,12 @@ from aqt.utils import askUserDialog, showInfo, showText, showWarning, tooltip
 
 
 class SyncManager(QObject):
-    def __init__(self, mw, pm):
+    def __init__(self, mw: AnkiQt, pm: ProfileManager) -> None:
         QObject.__init__(self, mw)
         self.mw = mw
         self.pm = pm
 
-    def sync(self):
+    def sync(self) -> None:
         if not self.pm.profile["syncKey"]:
             auth = self._getUserPass()
             if not auth:
@@ -31,14 +34,14 @@ class SyncManager(QObject):
         else:
             self._sync()
 
-    def _sync(self, auth=None):
+    def _sync(self, auth: Optional[Tuple[str, str]] = None) -> None:
         # to avoid gui widgets being garbage collected in the worker thread,
         # run gc in advance
         self._didFullUp = False
         self._didError = False
         gc.collect()
         # create the thread, setup signals and start running
-        t = self.thread = SyncThread(
+        t = self.thread = SyncThread(  # type: ignore
             self.pm.collectionPath(),
             self.pm.profile["syncKey"],
             auth=auth,
@@ -58,7 +61,7 @@ class SyncManager(QObject):
                 self._didFullUp = False
                 # abort may take a while
                 self.mw.progress.update(_("Stopping..."))
-            self.mw.app.processEvents()
+            self.mw.app.processEvents()  # type: ignore
             self.thread.wait(100)
         self.mw.progress.finish()
         if self.thread.syncMsg:
@@ -83,7 +86,7 @@ automatically."""
 
         self.mw.progress.timer(1000, delayedInfo, False, requiresCollection=False)
 
-    def _updateLabel(self):
+    def _updateLabel(self) -> None:
         self.mw.progress.update(
             label="%s\n%s"
             % (
@@ -99,7 +102,7 @@ automatically."""
         self.recvBytes = max(self.recvBytes, download)
         self._updateLabel()
 
-    def onEvent(self, evt, *args):
+    def onEvent(self, evt: str, *args) -> None:
         pu = self.mw.progress.update
         if evt == "badAuth":
             tooltip(
@@ -307,7 +310,7 @@ last sync to this device will be lost.
 After all devices are in sync, future reviews and added cards can be merged \
 automatically."""
                 ),
-                [_("Upload to AnkiWeb"), _("Download from AnkiWeb"), _("Cancel")],
+                [_("Upload to AnkiWeb"), _("Download from AnkiWeb"), _("Cancel"),],
             )
             diag.setDefault(2)
         ret = diag.run()
@@ -347,7 +350,13 @@ class SyncThread(QThread):
     _event = pyqtSignal(str, str)
     progress_event = pyqtSignal(int, int)
 
-    def __init__(self, path, hkey, auth=None, hostNum=None):
+    def __init__(
+        self,
+        path: str,
+        hkey: str,
+        auth: Optional[Tuple[str, str]] = None,
+        hostNum: Optional[int] = None,
+    ) -> None:
         QThread.__init__(self)
         self.path = path
         self.hkey = hkey
