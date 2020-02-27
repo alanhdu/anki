@@ -7,6 +7,7 @@ import requests
 
 import aqt
 from anki.lang import _
+from aqt.main import AnkiQt
 from anki.utils import platDesc, versionWithBuild
 from aqt.qt import *
 from aqt.utils import openLink, showText
@@ -18,7 +19,7 @@ class LatestVersionFinder(QThread):
     newMsg = pyqtSignal(dict)
     clockIsOff = pyqtSignal(float)
 
-    def __init__(self, main):
+    def __init__(self, main: AnkiQt) -> None:
         QThread.__init__(self)
         self.main = main
         self.config = main.pm.meta
