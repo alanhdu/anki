@@ -25,7 +25,7 @@ class TaskManager(QObject):
         self._closures_lock = Lock()
         self._closures_pending.connect(self._on_closures_pending)  # type: ignore
 
-    def run_on_main(self, closure: Closure):
+    def run_on_main(self, closure: Closure) -> None:
         "Run the provided closure on the main thread."
         with self._closures_lock:
             self._closures.append(closure)
@@ -55,7 +55,7 @@ class TaskManager(QObject):
 
         return fut
 
-    def _on_closures_pending(self):
+    def _on_closures_pending(self) -> None:
         """Run any pending closures. This runs in the main thread."""
         with self._closures_lock:
             closures = self._closures
