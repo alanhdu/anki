@@ -2,18 +2,24 @@
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
 import re
+from typing import List, Optional
+
+from PyQt5.QtCore import QStringListModel
+from PyQt5.QtWidgets import QWidget
 
 from aqt.qt import *
+from anki.collection import _Collection
 
 
 class TagEdit(QLineEdit):
 
     lostFocus = pyqtSignal()
+    completer: QCompleter
 
     # 0 = tags, 1 = decks
-    def __init__(self, parent, type=0):
+    def __init__(self, parent: QWidget, type: int = 0) -> None:
         QLineEdit.__init__(self, parent)
-        self.col = None
+        self.col: Optional[_Collection] = None
         self.model = QStringListModel()
         self.type = type
         if type == 0:
@@ -24,7 +30,7 @@ class TagEdit(QLineEdit):
         self.completer.setCaseSensitivity(Qt.CaseInsensitive)
         self.setCompleter(self.completer)
 
-    def setCol(self, col):
+    def setCol(self, col: _Collection) -> None:
         "Set the current col, updating list of available tags."
         self.col = col
         if self.type == 0:
@@ -86,16 +92,18 @@ class TagEdit(QLineEdit):
         self.lostFocus.emit()
         self.completer.popup().hide()
 
-    def hideCompleter(self):
+    def hideCompleter(self) -> None:
         if sip.isdeleted(self.completer):
             return
         self.completer.popup().hide()
 
 
 class TagCompleter(QCompleter):
-    def __init__(self, model, parent, edit, *args):
+    def __init__(
+        self, model: QStringListModel, parent: QWidget, edit: TagEdit, *args
+    ) -> None:
         QCompleter.__init__(self, model, parent)
-        self.tags = []
+        self.tags: List[str] = []
         self.edit = edit
         self.cursor = None
 
